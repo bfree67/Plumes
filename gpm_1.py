@@ -72,7 +72,7 @@ def C(x,y,z):
     sig_y = ay*(x_km**(by+cy*math.log(x_km))) ## output in m
     sig_z = az*(x_km**(bz+cz*math.log(x_km)))  ## output in m
     
-    print(sig_y, sig_z)
+    #print(sig_y, sig_z)
 
     exp_term = math.exp(-.5*((y**2)/sig_y**2)+(z**2)/(sig_z**2))
 
@@ -80,5 +80,8 @@ def C(x,y,z):
 
     return C        
             
-x = np.linspace(1, 1000, 99)/1000
-A = 209.8* np.power(x,(.8804-0.006902*np.log(x)))         
+Coord = [(650,40),(500,30),(150,100)]       
+coord_n = len(Coord)
+for pt in range(coord_n):
+    x,y = Coord[pt]
+    print(pt,C(x,y,0))
