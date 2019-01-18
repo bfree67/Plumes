@@ -12,6 +12,7 @@ doi:10.1080/10473289.1990.10466761
 
 import numpy as np
 import math
+from numpy.linalg import inv
 
 def PQ_sigma_y(A):
     ### stability class coefficients for sigma_y
@@ -62,7 +63,7 @@ def C(x,y,z):
  ### Continuous, Steady-state, Source at Ground Level, 
  ### Wind Moving in x Direction at constant velocity U
 
-    MQ = 20 ## emission rate in g/second
+    #MQ = 20 ## emission rate in g/second
     U = 3 ## wind speed in m/s
      
     x_km = x/1000  ### convert input distance to km
@@ -76,12 +77,66 @@ def C(x,y,z):
 
     exp_term = math.exp(-.5*((y**2)/sig_y**2)+(z**2)/(sig_z**2))
 
-    C = (MQ/(math.pi*U*sig_y*sig_z))*exp_term
+    DC = (1/(math.pi*U*sig_y*sig_z))*exp_term  ### provide diffusion coeff w/o emission rate
 
-    return C        
-            
-Coord = [(650,40),(500,30),(150,100)]       
-coord_n = len(Coord)
-for pt in range(coord_n):
-    x,y = Coord[pt]
-    print(pt,C(x,y,0))
+    return DC 
+############## Sources
+#### Source locations       
+S1 = [0,0]
+S2 = [-15,-100]  
+S3 = [10,125,]      
+S_loc = [S1, S2, S3]
+S_n = len(S_loc)
+
+### emission rates in g/s
+Q1 = 20
+Q2 = 30
+Q3 = 45
+QS = np.asarray([Q1, Q2, Q3])
+
+##### Receptors
+###Receptor locations
+R = [(650,-140),(500,30),(150,100)]       
+R_n = len(R)
+
+
+### set initial reference pt
+S_ref = S1
+x_0 = S_ref[0]
+y_0 = S_ref[1]
+
+D = np.zeros((R_n,S_n))  ## matrix of diffusion coefficients
+EC= np.zeros((R_n,S_n))  ## matrix of coefficients
+RC = np.zeros(R_n)    # vector of receptor concentrations
+
+for pt_S in range(S_n):
+    S_ref = S_loc[pt_S]#[pt_S]
+    x_0 = S_ref[0]
+    y_0 = S_ref[1]
+    
+    for pt_R in range(R_n):
+        x_R,y_R = R[pt_R]
+    
+        D[pt_R,pt_S] = C(abs(x_R-x_0),abs(y_R-y_0),0) ## make diffusion matrix
+
+RC = D.dot(QS) ## multiply emissions rates to diff coefficients
+         
+for pt_R in range(R_n):
+    print('Total concentration at Receptor ' + str(pt_R) + ' is: '+ str(format(RC[pt_R], ".3E")) + ' g/m3' )
+    
+print(D)
+
+### invert D matrix
+
+Dinv = inv(D)
+
+### recover emission rates
+
+Qnew = Dinv.dot(RC)
+
+for pt_S in range(S_n):
+    print('Emission rate at Source  ' + str(pt_S) + ' is: '+ str(round(Qnew[pt_S],0)) + ' g/s' )
+
+
+
+
