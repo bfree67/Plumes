@@ -80,6 +80,29 @@ def C(x,y,z):
     DC = (1/(math.pi*U*sig_y*sig_z))*exp_term  ### provide diffusion coeff w/o emission rate
 
     return DC 
+
+def remap(wd_r, R_pt, S_pt):
+    ### remap coordinates based on wind direction 
+    ### wd_r is wind direction in radiation, R_pt is receptor coorinates (x,y)
+    ### S_pt is source coord (x,y)
+    ### returns remapped x, y values for dispersion calculation
+    
+    x_r, y_r = R_pt
+    x_s, y_s = S_pt
+    
+    dx = x_r - x_s
+    dy = y_r - y_s
+    
+    h = math.hypot(dx, dy)
+    theta = math.atan(dx/dy)  ### coord system uses x as downwind axis
+    
+    theta_new = theta + wd_r
+    
+    x_n = round(h * math.sin(theta_new),1)
+    y_n = round(h * math.cos(theta_new),1)
+    
+    return x_n, y_n
+
 ############## Sources
 #### Source locations       
 S1 = [0,0]
@@ -94,15 +117,19 @@ Q2 = 30
 Q3 = 45
 QS = np.asarray([Q1, Q2, Q3])
 
+wd = 0. # wind direction in degrees
+wd_r = math.radians(wd) # convert to radians
+
 ##### Receptors
 ###Receptor locations
 R = [(650,-140),(500,30),(150,100)]       
 R_n = len(R)
 
+n_max = max(R_n,S_n) ## use largest index to make matrices - just 0 out unused rows
 
-D = np.zeros((R_n,S_n))  ## matrix of diffusion coefficients
-EC= np.zeros((R_n,S_n))  ## matrix of coefficients
-RC = np.zeros(R_n)    # vector of receptor concentrations
+D = np.zeros((n_max,n_max))  ## matrix of diffusion coefficients
+EC= np.zeros((n_max,n_max))  ## matrix of coefficients
+RC = np.zeros(n_max)    # vector of receptor concentrations
 
 for pt_S in range(S_n):
     S_ref = S_loc[pt_S]#[pt_S]
@@ -110,9 +137,9 @@ for pt_S in range(S_n):
     y_0 = S_ref[1]
     
     for pt_R in range(R_n):
-        x_R,y_R = R[pt_R]
+        x_R, y_R = remap(wd_r,R[pt_R], S_ref)  ### align wind vectors using func remap
     
-        D[pt_R,pt_S] = C(abs(x_R-x_0),abs(y_R-y_0),0) ## make diffusion matrix
+        D[pt_R,pt_S] = C(abs(x_R),abs(y_R),0) ## make diffusion matrix
 
 RC = D.dot(QS) ## multiply emissions rates to diff coefficients
          
