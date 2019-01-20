@@ -18,8 +18,6 @@ Site = pd.read_excel('MAB-all.xls')
 
 Site_count = Site.groupby(['chemical_name']).count()['result_numeric'].reset_index()
 
-    
-
 chem_correct = 'n'
 while chem_correct == 'n':
     ### count the number of samples for each chemical
@@ -131,3 +129,5 @@ plt.ylabel('# of exceedances')
 plt.xlabel('Day of week')
 plt.title(Chemical + ' exceedances by day of week') 
 plt.show()
+
+print('\nThere were a total of ' + str(Chem_X_X['result_numeric'].count()) + ' exceedances in the report.')
