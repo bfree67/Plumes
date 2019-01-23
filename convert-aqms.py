@@ -35,39 +35,59 @@ def ppb2ugm3(Cppb,P, T, MW_name):
     
     return Cug
 
-##### read data file and choose chemical of interest
-Site = pd.read_excel('FS_AQMS.xlsx', sheet_name='2013')
+sheets = ['2013', '2014','2015', '2016']
 
-#### break out time and data from time/date
-Site['date'] = pd.to_datetime(Site['Time']).dt.strftime('%D')
-Site['day'] = pd.to_datetime(Site['Time']).dt.strftime('%d')
-Site['month'] = pd.to_datetime(Site['Time']).dt.strftime('%m')
-Site['year'] = pd.to_datetime(Site['Time']).dt.strftime('%Y')
+Site_all = pd.DataFrame()
 
-#Site['day_of_week_n'] = Site['Time'].apply(lambda x: x.weekday()) # get the weekday index, between 0 and 6
-#Site['day_of_week'] = Site['day_of_week_n'].apply(lambda x: calendar.day_name[x])  ## weekday name
-Site['hour'] = pd.to_datetime(Site['Time']).dt.strftime('%H')
-
-chemical = ['NO', 'NO2', 'SO2', 'O3', 'H2S', 'CH4', 'CO']
-
-## create new columns with chemical names that can be converted into ug/m3
-for i in range(len(chemical)):
+for i in range(len(sheets)):
     
-    chem_name = chemical[i]
+    print('Loading Year ', sheets[i],'....')
+    ##### read data file and choose chemical of interest
+    Site = pd.read_excel('FS_AQMS.xlsx', sheet_name= sheets[i])
+    
+    #### break out time and data from time/date
+    Site['date'] = pd.to_datetime(Site['Time']).dt.strftime('%D')
+    Site['day'] = pd.to_datetime(Site['Time']).dt.strftime('%d')
+    Site['month'] = pd.to_datetime(Site['Time']).dt.strftime('%m')
+    Site['year'] = pd.to_datetime(Site['Time']).dt.strftime('%Y')
+    
+    #Site['day_of_week_n'] = Site['Time'].apply(lambda x: x.weekday()) # get the weekday index, between 0 and 6
+    #Site['day_of_week'] = Site['day_of_week_n'].apply(lambda x: calendar.day_name[x])  ## weekday name
+    Site['hour'] = pd.to_datetime(Site['Time']).dt.strftime('%H')
+    
+    chemical = ['NO', 'NO2', 'SO2', 'O3', 'H2S', 'CH4', 'CO']
+    
+    ## create new columns with chemical names that can be converted into ug/m3
+    for i in range(len(chemical)):
+        
+        chem_name = chemical[i]
+    
+        Site[chem_name+'-ugm3'] = ppb2ugm3(Site[chem_name + '-ppb'], Site['BP-hpa'], Site['Temp-degC'], chem_name)
+    
+    Site['NOX-ugm3'] = Site['NO-ugm3'] + Site['NO2-ugm3']
+    Site['BP-kpa'] = Site['BP-hpa'] * 0.1
+    
+    Site_all = Site_all.append(Site)  ## collect each year
 
-    Site[chem_name+'-ugm3'] = ppb2ugm3(Site[chem_name + '-ppb'], Site['BP-hpa'], Site['Temp-degC'], chem_name)
-
-Site['NOX-ugm3'] = Site['NO-ugm3'] + Site['NO2-ugm3']
-Site['BP-kpa'] = Site['BP-hpa'] * 0.1
+### reset index
+Site_all = Site_all.reset_index(drop=True)
 
 ### write results to spreadsheet in Excel
-filename_out = 'AMS-rawdata-out'
-writer = pd.ExcelWriter(filename_out + '.xlsx')
-Site.to_excel(writer,'FS')
-writer.save()
+file_saved = 0
+while file_saved == 0:
+    try:
+        filename_out = 'AMS-rawdata-out'
+        writer = pd.ExcelWriter(filename_out + '.xlsx')
+        Site_all.to_excel(writer,'FS')
+        writer.save()
+        file_saved = 1
+        print('File ' + filename_out + '.xlsx saved')
+        
+    except:
+        print('File ' + filename_out + '.xls is open. Close it and try again.')
 
 #### make revised dataframe with sequence for AQMIS - no ppb only fields like NMHC
-Site_new = Site[['date', 
+Site_new = Site_all[['date', 
         'hour', 
         'NO-ugm3', 
         'NO2-ugm3', 
@@ -88,7 +108,15 @@ Site_new = Site[['date',
         'SW-w/m2']].copy()
 
 ### write results to spreadsheet in Excel
-filename_out = 'AMS-AQMISdata-out'
-writer = pd.ExcelWriter(filename_out + '.xlsx')
-Site_new.to_excel(writer,'FS')
-writer.save()
+file_saved = 0
+while file_saved == 0:
+    try:
+        filename_out = 'AMS-AQMISdata-out'
+        writer = pd.ExcelWriter(filename_out + '.xlsx')
+        Site_new.to_excel(writer,'FS')
+        writer.save()
+        file_saved = 1
+        print('File ' + filename_out + '.xlsx saved')
+        
+    except:
+        print('File ' + filename_out + '.xls is open. Close it and try again.')
