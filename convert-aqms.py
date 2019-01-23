@@ -11,6 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import calendar
 import os
+import time
 
 def MW_gmole(MW_name):
     MWg =	{
@@ -35,13 +36,16 @@ def ppb2ugm3(Cppb,P, T, MW_name):
     
     return Cug
 
+########################Start program execution
+start = time.time()
+
 sheets = ['2013', '2014','2015', '2016']
 
 Site_all = pd.DataFrame()
 
 for i in range(len(sheets)):
     
-    print('Loading Year ', sheets[i],'....')
+    print('Loading Year ' + sheets[i] + ' ....')
     ##### read data file and choose chemical of interest
     Site = pd.read_excel('FS_AQMS.xlsx', sheet_name= sheets[i])
     
@@ -64,13 +68,22 @@ for i in range(len(sheets)):
     
         Site[chem_name+'-ugm3'] = ppb2ugm3(Site[chem_name + '-ppb'], Site['BP-hpa'], Site['Temp-degC'], chem_name)
     
-    Site['NOX-ugm3'] = Site['NO-ugm3'] + Site['NO2-ugm3']
+    Site['CO-mgm3'] = Site['CO-ugm3'] * 0.001
+    Site['CH4-mgm3'] = Site['CH4-ugm3'] * 0.001
+    Site['H2S-mgm3'] = Site['H2S-ugm3'] * 0.001
+    
     Site['BP-kpa'] = Site['BP-hpa'] * 0.1
     
     Site_all = Site_all.append(Site)  ## collect each year
 
 ### reset index
 Site_all = Site_all.reset_index(drop=True)
+
+end = time.time()
+
+duration = round(end - start,2) # total time in seconds
+
+print('Loaded and processed in ' + str(duration) + ' seconds.\n')
 
 ### write results to spreadsheet in Excel
 file_saved = 0
@@ -88,24 +101,21 @@ while file_saved == 0:
 
 #### make revised dataframe with sequence for AQMIS - no ppb only fields like NMHC
 Site_new = Site_all[['date', 
-        'hour', 
-        'NO-ugm3', 
-        'NO2-ugm3', 
-        'NOX-ugm3', 
-        'SO2-ugm3', 
-        'O3-ugm3', 
-        'H2S-ugm3', 
-        'CH4-ugm3', 
-        'CO-ugm3', 
-        'NMHC-ppb', 
-        'HCT-ppb', 
-        'PM10-ug/m3', 
-        'WS-m/s', 
-        'WD', 
-        'Temp-degC', 
-        'RH-percent', 
-        'BP-kpa', 
-        'SW-w/m2']].copy()
+                    'hour', 
+                    'NO-ugm3', 
+                    'NO2-ugm3', 
+                    'SO2-ugm3', 
+                    'O3-ugm3', 
+                    'CH4-mgm3',
+                    'H2S-mgm3',  
+                    'CO-mgm3', 
+                    'PM10-ug/m3', 
+                    'WS-m/s', 
+                    'WD', 
+                    'Temp-degC', 
+                    'RH-percent', 
+                    'BP-kpa', 
+                    'SW-w/m2']].copy()
 
 ### write results to spreadsheet in Excel
 file_saved = 0
