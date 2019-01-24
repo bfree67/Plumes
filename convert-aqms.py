@@ -9,6 +9,7 @@ Also creates rows to groupby dates
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import calendar
 import os
 import time
@@ -39,7 +40,8 @@ def ppb2ugm3(Cppb,P, T, MW_name):
 ########################Start program execution
 start = time.time()
 
-sheets = ['2013', '2014','2015', '2016']
+#sheets = ['2013','2014','2015', '2016', '2017']
+sheets = ['2013','2014','2015', '2016']
 
 Site_all = pd.DataFrame()
 
@@ -68,44 +70,32 @@ for i in range(len(sheets)):
     
         Site[chem_name+'-ugm3'] = ppb2ugm3(Site[chem_name + '-ppb'], Site['BP-hpa'], Site['Temp-degC'], chem_name)
     
-    Site['CO-mgm3'] = Site['CO-ugm3'] * 0.001
-    Site['CH4-mgm3'] = Site['CH4-ugm3'] * 0.001
-    Site['H2S-mgm3'] = Site['H2S-ugm3'] * 0.001
+    ### add modified columns
+    Site['CO-mgm3'] = Site['CO-ugm3'] / 1000
+    Site['CH4-mgm3'] = Site['CH4-ugm3'] / 1000
+    Site['H2S-mgm3'] = Site['H2S-ugm3'] / 1000
     
     Site['BP-kpa'] = Site['BP-hpa'] * 0.1
+    
+    Site['8hrO3'] = Site['O3-ugm3'].rolling(window=8).mean()
+    Site['8hrCO'] = Site['CO-ugm3'].rolling(window=8).mean()
+    Site['24hrPM10'] = Site['PM10-ug/m3'].rolling(window=24).mean()
+    Site['24hrNO2'] = Site['NO2-ugm3'].rolling(window=24).mean()
+    Site['24hrSO2'] = Site['SO2-ugm3'].rolling(window=24).mean()
     
     Site_all = Site_all.append(Site)  ## collect each year
 
 ### reset index
 Site_all = Site_all.reset_index(drop=True)
 
-end = time.time()
-
-duration = round(end - start,2) # total time in seconds
-
-print('Loaded and processed in ' + str(duration) + ' seconds.\n')
-
-### write results to spreadsheet in Excel
-file_saved = 0
-while file_saved == 0:
-    try:
-        filename_out = 'AMS-rawdata-out'
-        writer = pd.ExcelWriter(filename_out + '.xlsx')
-        Site_all.to_excel(writer,'FS')
-        writer.save()
-        file_saved = 1
-        print('File ' + filename_out + '.xlsx saved')
-        
-    except:
-        print('File ' + filename_out + '.xls is open. Close it and try again.')
-
+######################################################
 #### make revised dataframe with sequence for AQMIS - no ppb only fields like NMHC
 Site_new = Site_all[['date', 
                     'hour', 
-                    'NO-ugm3', 
+                    'NO-ugm3',  
+                    'O3-ugm3',
+                    'SO2-ugm3',
                     'NO2-ugm3', 
-                    'SO2-ugm3', 
-                    'O3-ugm3', 
                     'CH4-mgm3',
                     'H2S-mgm3',  
                     'CO-mgm3', 
@@ -115,18 +105,114 @@ Site_new = Site_all[['date',
                     'Temp-degC', 
                     'RH-percent', 
                     'BP-kpa', 
-                    'SW-w/m2']].copy()
+                    'SW-w/m2',
+                    '8hrO3']].copy()
 
+Site_new = Site_new.replace(np.inf, np.nan)
+
+end = time.time()
+
+duration = round(end - start,2) # total time in seconds
+
+print('Loaded and processed in ' + str(duration) + ' seconds.\n')
+
+#############################################
 ### write results to spreadsheet in Excel
-file_saved = 0
-while file_saved == 0:
-    try:
-        filename_out = 'AMS-AQMISdata-out'
-        writer = pd.ExcelWriter(filename_out + '.xlsx')
-        Site_new.to_excel(writer,'FS')
-        writer.save()
-        file_saved = 1
-        print('File ' + filename_out + '.xlsx saved')
+try:
+    save_files = input('Save output files (Default = n)? (y/n) ')
+except:
+    save_files = 'n' 
+
+if save_files == 'y':
+    #################################################
+    ### write raw data results to spreadsheet in Excel
+    file_saved = 0
+    while file_saved == 0:
+        try:
+            filename_out = 'AMS-rawdata-out'
+            writer = pd.ExcelWriter(filename_out + '.xlsx')
+            Site_all.to_excel(writer,'FS')
+            writer.save()
+            file_saved = 1
+            print('File ' + filename_out + '.xlsx saved')
+            
+        except:
+            print('File ' + filename_out + '.xls is open. Close it and try again.')
+
+    
+    file_saved = 0
+    while file_saved == 0:
+        try:
+            filename_out = 'AMS-AQMISdata-out'
+            writer = pd.ExcelWriter(filename_out + '.xlsx')
+            Site_new.to_excel(writer,'FS')
+            writer.save()
+            file_saved = 1
+            print('File ' + filename_out + '.xlsx saved')
+            
+        except:
+            print('File ' + filename_out + '.xls is open. Close it and try again.')
+
+########################################################
+##### 
+a = list(Site_new) ## make list of column headers
+last_col = np.shape(Site_new)[1] - 1
+     
+finish_plot = 0
+while finish_plot == 0:
+    for i in range (len(a)):
+        print (i, a[i])
         
-    except:
-        print('File ' + filename_out + '.xls is open. Close it and try again.')
+    # pick column to predict
+    try:
+        target_col = int(input("Select the column number to plot (default = " + a[last_col] + "): "))
+    except ValueError:
+        target_col = last_col   #choose last column as default
+    
+    
+    print('You selected ' + a[target_col])
+    
+    try:
+        Exceedance = float(input('What is the regulatory limit for this chemical in ug/m3? (Default = 0 ug/m3): '))
+    except ValueError:
+        Exceedance = 0. 
+
+    try:
+        time_ave = int(input('What is the regulatory time average period? (Default = 1 hr): '))
+    except ValueError:
+        time_ave = 1
+        
+    Site_new['plot_chem'] = Site_new[a[target_col]].rolling(window=time_ave).mean()
+    
+    sum_exceed = sum((Site_new['plot_chem']>Exceedance) + 0.)
+    missing = Site_new[a[target_col]].isna().sum()
+    tot_hrs = len(Site_new)
+    
+    print('Total hours in reporting period = ', tot_hrs)
+    print('Missing data pts = ', missing, '('+str(round((missing/tot_hrs)*100,1))+'%)')
+    print('# of exceedances in reporting period = ', int(sum_exceed))
+        
+    ################### Begin plotting
+      
+    plt.figure()
+    plt.plot(Site_new['plot_chem'])
+    #plt.yscale('log')
+    plt.axhline(y= Exceedance, color='r', linestyle='-')  ### add reg limit at 3 mg/l
+    plt.xticks(rotation='vertical')
+    plt.ylabel('$\mu g/m^{3}$')
+    plt.grid(axis='y', alpha=0.75)
+    #plt.title(Chemical + ' daily sample (linear scale)')
+    plt.show()
+    
+    ################################################
+    ### Finish up
+    try:
+        last_time = input("Finished (y/n)? (default = y): ")
+    except ValueError:
+        last_time = 'y'   #choose last column as default    
+        
+    if last_time == 'y':
+        finish_plot = 1
+
+        
+    
