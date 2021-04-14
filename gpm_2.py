@@ -27,7 +27,7 @@ def PQ_sigma_y(A):
     if A == 'E':
         PQ_sy_class = np.asarray([51.05, 0.9112, -0.004845]) ## Class E
     if A == 'F':
-        PQ_sy_class = np.asarray([33.96, 0.91121, -0.004845]) ## Class E
+        PQ_sy_class = np.asarray([33.96, 0.91121, -0.004845]) ## Class F
 
     ### assign coefficients
     ay = PQ_sy_class[0]
@@ -49,7 +49,7 @@ def PQ_sigma_z(A):
     if A == 'E':
         PQ_sz_class = np.asarray([21.14, 0.6802, -0.04522]) ## Class E
     if A == 'F':
-        PQ_sz_class = np.asarray([13.72, 0.6584, -0.05367]) ## Class E
+        PQ_sz_class = np.asarray([13.72, 0.6584, -0.05367]) ## Class F
 
     ### assign coefficients
     az = PQ_sz_class[0]
